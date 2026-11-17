@@ -1,1 +1,261 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>QuizArena</title>
+  <style>
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    }
 
+    body {
+      background: linear-gradient(135deg, #1e1e2f 0%, #11111b 100%);
+      color: #fff;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+      padding: 1.5rem;
+    }
+
+    .quiz-card {
+      background: #27293d;
+      width: 100%;
+      max-width: 580px;
+      padding: 2.2rem;
+      border-radius: 16px;
+      box-shadow: 0 15px 35px rgba(0, 0, 0, 0.4);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+    }
+
+    .quiz-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 1.5rem;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+      padding-bottom: 0.8rem;
+    }
+
+    .badge {
+      background: #e14eca;
+      padding: 0.35rem 0.8rem;
+      border-radius: 999px;
+      font-size: 0.85rem;
+      font-weight: 600;
+    }
+
+    .score {
+      font-weight: 600;
+      color: #00f2c3;
+      font-size: 1rem;
+    }
+
+    .question {
+      font-size: 1.25rem;
+      line-height: 1.6;
+      margin-bottom: 1.8rem;
+      font-weight: 500;
+    }
+
+    .options-grid {
+      display: grid;
+      gap: 0.8rem;
+    }
+
+    .option-btn {
+      background: #1f2233;
+      border: 1px solid rgba(255, 255, 255, 0.15);
+      border-radius: 10px;
+      padding: 1rem 1.2rem;
+      color: #fff;
+      font-size: 1rem;
+      text-align: left;
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+
+    .option-btn:hover:not(:disabled) {
+      border-color: #ba54f5;
+      background: #2b2e46;
+      transform: translateY(-2px);
+    }
+
+    .option-btn.correct {
+      background: #00bf9a !important;
+      border-color: #00bf9a !important;
+      color: #fff !important;
+    }
+
+    .option-btn.wrong {
+      background: #fd5d93 !important;
+      border-color: #fd5d93 !important;
+      color: #fff !important;
+    }
+
+    .next-btn {
+      width: 100%;
+      margin-top: 1.8rem;
+      padding: 0.9rem;
+      border: none;
+      border-radius: 10px;
+      background: linear-gradient(135deg, #ba54f5 0%, #e14eca 100%);
+      color: white;
+      font-size: 1.05rem;
+      font-weight: 600;
+      cursor: pointer;
+      display: none;
+    }
+
+    .next-btn:hover {
+      opacity: 0.95;
+    }
+
+    .result-view {
+      text-align: center;
+      display: none;
+    }
+
+    .result-view h2 {
+      font-size: 1.8rem;
+      margin-bottom: 0.8rem;
+      color: #00f2c3;
+    }
+
+    .result-view p {
+      color: #c0c0d1;
+      font-size: 1.1rem;
+      margin-bottom: 1.5rem;
+    }
+  </style>
+</head>
+<body>
+
+  <div class="quiz-card">
+    <div id="game-view">
+      <div class="quiz-header">
+        <span class="badge" id="progress">Soru 1 / 5</span>
+        <span class="score" id="score-counter">Puan: 0</span>
+      </div>
+
+      <div class="question" id="question-text">Soru yükleniyor...</div>
+
+      <div class="options-grid" id="options-container"></div>
+
+      <button class="next-btn" id="next-btn" onclick="nextQuestion()">Sonraki Soru</button>
+    </div>
+
+    <div class="result-view" id="result-view">
+      <h2>Tebrikler!</h2>
+      <p id="final-score">Testi tamamladınız.</p>
+      <button class="next-btn" style="display: inline-block;" onclick="restartQuiz()">Yeniden Başla</button>
+    </div>
+  </div>
+
+  <script>
+    const quizData = [
+      {
+        question: "Bilişim teknolojilerinde bir algoritmanın sonlu sayıda adımdan oluşması kuralı neyi ifade eder?",
+        options: ["Belirlilik", "Sonluluk", "Etkinlik", "Girdi/Çıktı Uyumu"],
+        answer: 1
+      },
+      {
+        question: "Aşağıdakilerden hangisi istemci taraflı (client-side) çalışan bir web teknolojisidir?",
+        options: ["Node.js", "Python", "JavaScript", "PHP"],
+        answer: 2
+      },
+      {
+        question: "Web sayfalarının tarayıcıda doğrudan çalışabilmesi için ana giriş dosyası varsayılan olarak hangi isimle adlandırılır?",
+        options: ["home.html", "main.html", "index.html", "app.html"],
+        answer: 2
+      },
+      {
+        question: "Hangisi bilgisayar ağlarında alan adlarını IP adreslerine çeviren temel servistir?",
+        options: ["DNS", "DHCP", "FTP", "SSH"],
+        answer: 0
+      },
+      {
+        question: "Hangisi verilerin tarayıcı kapatılsa dahi silinmeden yerel bellekte kalmasını sağlayan Web Depolama API'sidir?",
+        options: ["sessionStorage", "localStorage", "Cookies", "Cache Storage"],
+        answer: 1
+      }
+    ];
+
+    let currentQuestion = 0;
+    let score = 0;
+
+    const questionEl = document.getElementById("question-text");
+    const optionsEl = document.getElementById("options-container");
+    const progressEl = document.getElementById("progress");
+    const scoreCounterEl = document.getElementById("score-counter");
+    const nextBtn = document.getElementById("next-btn");
+    const gameView = document.getElementById("game-view");
+    const resultView = document.getElementById("result-view");
+    const finalScoreEl = document.getElementById("final-score");
+
+    function loadQuestion() {
+      const q = quizData[currentQuestion];
+      progressEl.textContent = `Soru ${currentQuestion + 1} / ${quizData.length}`;
+      questionEl.textContent = q.question;
+      optionsEl.innerHTML = "";
+      nextBtn.style.display = "none";
+
+      q.options.forEach((opt, idx) => {
+        const btn = document.createElement("button");
+        btn.className = "option-btn";
+        btn.textContent = opt;
+        btn.onclick = () => selectOption(idx, btn);
+        optionsEl.appendChild(btn);
+      });
+    }
+
+    function selectOption(selectedIdx, selectedBtn) {
+      const q = quizData[currentQuestion];
+      const buttons = optionsEl.querySelectorAll(".option-btn");
+
+      buttons.forEach(b => b.disabled = true);
+
+      if (selectedIdx === q.answer) {
+        selectedBtn.classList.add("correct");
+        score += 20;
+        scoreCounterEl.textContent = `Puan: ${score}`;
+      } else {
+        selectedBtn.classList.add("wrong");
+        buttons[q.answer].classList.add("correct");
+      }
+
+      nextBtn.style.display = "block";
+    }
+
+    function nextQuestion() {
+      currentQuestion++;
+      if (currentQuestion < quizData.length) {
+        loadQuestion();
+      } else {
+        showResults();
+      }
+    }
+
+    function showResults() {
+      gameView.style.display = "none";
+      resultView.style.display = "block";
+      finalScoreEl.textContent = `Toplam Puanınız: ${score} / 100`;
+    }
+
+    function restartQuiz() {
+      currentQuestion = 0;
+      score = 0;
+      scoreCounterEl.textContent = `Puan: 0`;
+      resultView.style.display = "none";
+      gameView.style.display = "block";
+      loadQuestion();
+    }
+
+    loadQuestion();
+  </script>
+</body>
+</html>
